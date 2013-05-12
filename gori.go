@@ -69,6 +69,7 @@ func main() {
 	var (
 		riak_host = config.String("riak_host", "")
 		port      = config.String("port", "8888")
+		media_dir = config.String("media_dir", "media")
 	)
 	config.Parse(configFile)
 	client := riak.New(*riak_host)
@@ -83,7 +84,7 @@ func main() {
 	http.HandleFunc("/page/", makeHandler(pageHandler, ctx))
 	http.HandleFunc("/edit/", makeHandler(editHandler, ctx))
 	http.Handle("/media/", http.StripPrefix("/media/",
-		http.FileServer(http.Dir("media"))))
+		http.FileServer(http.Dir(*media_dir))))
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
 	client.Close()
 }
