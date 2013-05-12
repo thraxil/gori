@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/russross/blackfriday"
+	"github.com/stvp/go-toml-config"
 	"github.com/tpjg/goriakpbc"
 	"html/template"
 	"log"
@@ -62,8 +64,14 @@ type Context struct {
 }
 
 func main() {
-	// 8087 is the port for protocol buffers
-	client := riak.New("128.59.152.25:8087")
+	var configFile string
+	flag.StringVar(&configFile, "config", "./dev.conf", "TOML config file")
+	var (
+		riak_host = config.String("riak_host", "")
+		port      = config.String("port", "8888")
+	)
+	config.Parse(configFile)
+	client := riak.New(*riak_host)
 	err := client.Connect()
 	if err != nil {
 		fmt.Println("Cannot connect, is Riak running?")
@@ -76,7 +84,7 @@ func main() {
 	http.HandleFunc("/edit/", makeHandler(editHandler, ctx))
 	http.Handle("/media/", http.StripPrefix("/media/",
 		http.FileServer(http.Dir("media"))))
-	log.Fatal(http.ListenAndServe(":8888", nil))
+	log.Fatal(http.ListenAndServe(":"+*port, nil))
 	client.Close()
 }
 
