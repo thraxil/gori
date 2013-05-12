@@ -66,6 +66,7 @@ type Context struct {
 func main() {
 	var configFile string
 	flag.StringVar(&configFile, "config", "./dev.conf", "TOML config file")
+	flag.Parse()
 	var (
 		riak_host = config.String("riak_host", "")
 		port      = config.String("port", "8888")
