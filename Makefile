@@ -19,3 +19,8 @@ install_deps:
 	go get -u github.com/russross/blackfriday
 	go get -u github.com/stvp/go-toml-config
 	go get -u github.com/tpjg/goriakpbc
+
+deploy: gori
+	scp gori maru.thraxil.org:/var/www/gori/
+	rsync -ravP media maru.thraxil.org:/var/www/gori/
+	ssh maru.thraxil.org "sudo restart gori"
