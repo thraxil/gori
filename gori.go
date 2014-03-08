@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -65,7 +66,11 @@ type Context struct {
 
 func main() {
 	var configFile string
-	flag.StringVar(&configFile, "config", "./dev.conf", "TOML config file")
+	default_conf_file := "./dev.conf"
+	if os.Getenv("GORI_CONFIG_FILE") != "" {
+		default_conf_file = os.Getenv("GORI_CONFIG_FILE")
+	}
+	flag.StringVar(&configFile, "config", default_conf_file, "TOML config file")
 	flag.Parse()
 	var (
 		riak_host = config.String("riak_host", "")
@@ -73,6 +78,17 @@ func main() {
 		media_dir = config.String("media_dir", "media")
 	)
 	config.Parse(configFile)
+	if os.Getenv("GORI_PORT") != "" {
+		*port = os.Getenv("GORI_PORT")
+	}
+	if os.Getenv("GORI_RIAK_HOST") != "" {
+		*riak_host = os.Getenv("GORI_RIAK_HOST")
+	}
+	if os.Getenv("GORI_MEDIA_DIR") != "" {
+		*media_dir = os.Getenv("GORI_MEDIA_DIR")
+	}
+
+	fmt.Println(*port)
 	client := riak.New(*riak_host)
 	err := client.Connect()
 	if err != nil {
