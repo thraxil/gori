@@ -24,3 +24,6 @@ deploy: gori
 	scp gori maru.thraxil.org:/var/www/gori/
 	rsync -ravP media maru.thraxil.org:/var/www/gori/
 	ssh maru.thraxil.org "sudo restart gori"
+
+docker: gori
+	docker build -t gori:latest .

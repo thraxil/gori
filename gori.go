@@ -88,7 +88,6 @@ func main() {
 		*media_dir = os.Getenv("GORI_MEDIA_DIR")
 	}
 
-	fmt.Println(*port)
 	client := riak.New(*riak_host)
 	err := client.Connect()
 	if err != nil {
