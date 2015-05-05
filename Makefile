@@ -20,10 +20,10 @@ install_deps:
 	go get -u github.com/stvp/go-toml-config
 	go get -u github.com/tpjg/goriakpbc
 
-deploy: gori
-	scp gori maru.thraxil.org:/var/www/gori/
-	rsync -ravP media maru.thraxil.org:/var/www/gori/
-	ssh maru.thraxil.org "sudo restart gori"
+deploy: docker
+	docker push thraxil/gori
+	ssh arctic.thraxil.org docker pull thraxil/gori
+	ssh arctic.thraxil.org /sbin/restart gori
 
 docker: gori
-	docker build -t gori:latest .
+	docker build -t thraxil/gori:latest .
