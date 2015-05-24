@@ -9,5 +9,6 @@ RUN go install github.com/thraxil/gori
 RUN mkdir /gori/
 EXPOSE 8890
 ENV GORI_MEDIA_DIR=/go/src/github.com/thraxil/gori/media/
+ENV GORI_PORT=8890
 CMD ["/go/bin/gori"]
 
