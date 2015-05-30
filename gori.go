@@ -1,18 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/russross/blackfriday"
-	"github.com/stvp/go-toml-config"
-	"github.com/tpjg/goriakpbc"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/russross/blackfriday"
+	"github.com/stvp/go-toml-config"
+	"github.com/tpjg/goriakpbc"
 )
 
 type Page struct {
@@ -70,8 +73,11 @@ func main() {
 	if os.Getenv("GORI_CONFIG_FILE") != "" {
 		default_conf_file = os.Getenv("GORI_CONFIG_FILE")
 	}
+	var dumpjson string
 	flag.StringVar(&configFile, "config", default_conf_file, "TOML config file")
+	flag.StringVar(&dumpjson, "dumpjson", "", "dump json file")
 	flag.Parse()
+
 	var (
 		riak_host = config.String("riak_host", "")
 		port      = config.String("port", "8888")
@@ -95,6 +101,13 @@ func main() {
 		return
 	}
 
+	log.Println(dumpjson)
+	if dumpjson != "" {
+		log.Println("dump json")
+		dumpJSON(client)
+		return
+	}
+
 	var ctx = Context{client}
 	http.Handle("/", http.RedirectHandler("/page/index/", 302))
 	http.HandleFunc("/page/", makeHandler(pageHandler, ctx))
@@ -103,6 +116,73 @@ func main() {
 		http.FileServer(http.Dir(*media_dir))))
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
 	client.Close()
+}
+
+func (p Page) recursivePages(client *riak.Client, seen map[string]Page) map[string]Page {
+	log.Println("===", p.Title, "===")
+	pattern, _ := regexp.Compile(`(\[\[\s*[^\|\]]+\s*\|?\s*[^\]]*\s*\]\])`)
+	seen[p.Title] = p
+	links := pattern.FindAllString(p.Body, -1)
+	for _, s := range links {
+		s = strings.Trim(s, "[]- ") // get rid of the delimiters
+		title := s
+		slug := slugify(s)
+		if strings.Index(s, "|") != -1 {
+			parts := strings.SplitN(s, "|", 2)
+			page_title := strings.Trim(parts[0], " ")
+			link_text := strings.Trim(parts[1], " ")
+			title = link_text
+			slug = slugify(page_title)
+		}
+		_, ok := seen[title]
+		if ok {
+			continue
+		} else {
+			var page Page
+			client.Load("riakipage", slug, &page)
+			children := page.recursivePages(client, seen)
+			for key, value := range children {
+				seen[key] = value
+			}
+		}
+	}
+	return seen
+}
+
+type PageDump struct {
+	Title    string
+	Slug     string
+	Body     string
+	Modified string
+}
+
+func dumpJSON(client *riak.Client) {
+	filename := "out.json"
+
+	var page Page
+	client.Load("riakipage", "index", &page)
+
+	pages := page.recursivePages(client, make(map[string]Page))
+
+	var prs []PageDump
+
+	for _, p := range pages {
+		pr := PageDump{
+			Title:    p.Title,
+			Slug:     slugify(p.Title),
+			Body:     p.Body,
+			Modified: p.Modified,
+		}
+		prs = append(prs, pr)
+	}
+	output, _ := json.Marshal(pages)
+
+	err := ioutil.WriteFile(filename, output, 0644)
+	if err != nil {
+		log.Println("could not write output")
+	} else {
+		log.Println("done")
+	}
 }
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, Context),
