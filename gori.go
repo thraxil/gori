@@ -128,6 +128,7 @@ func main() {
 		port      = config.String("port", "8888")
 		media_dir = config.String("media_dir", "media")
 	)
+	var DB_URL string
 	config.Parse(configFile)
 	if os.Getenv("GORI_PORT") != "" {
 		*port = os.Getenv("GORI_PORT")
@@ -135,8 +136,11 @@ func main() {
 	if os.Getenv("GORI_MEDIA_DIR") != "" {
 		*media_dir = os.Getenv("GORI_MEDIA_DIR")
 	}
+	if os.Getenv("GORI_DB_URL") != "" {
+		DB_URL = os.Getenv("GORI_DB_URL")
+	}
 
-	db, err := sql.Open("postgres", "postgres://pguser:foo@localhost/gori?sslmode=disable")
+	db, err := sql.Open("postgres", DB_URL)
 
 	if err != nil {
 		log.Println("can't open database")
