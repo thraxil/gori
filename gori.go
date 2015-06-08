@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -74,6 +76,43 @@ func (p *Page) SaveAs(db *sql.DB, slug string) error {
 	return err
 }
 
+type JsonEntry struct {
+	Title    string
+	Body     string
+	Created  string
+	Modified string
+}
+
+type JsonFile map[string]JsonEntry
+
+func loadJSON(db *sql.DB, filename string) {
+	data, _ := ioutil.ReadFile(filename)
+	var entries JsonFile
+	err := json.Unmarshal(data, &entries)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for title, entry := range entries {
+		slug := slugify(title)
+		p, _ := getPage(db, slug)
+		p.Create(db)
+		p.Title = entry.Title
+		p.Body = entry.Body
+		modified, err := time.Parse("2006-01-02T15:04:05", entry.Modified)
+		if err != nil {
+			modified = time.Now()
+		}
+		p.Modified = modified
+		created, err := time.Parse("2006-01-02T15:04:05", entry.Created)
+		if err != nil {
+			created = modified
+		}
+		p.Created = created
+		p.SaveAs(db, slug)
+	}
+}
+
 func (p Page) RenderedBody() template.HTML {
 	return template.HTML(string(blackfriday.MarkdownCommon([]byte(p.LinkText()))))
 }
@@ -117,11 +156,13 @@ type Context struct {
 
 func main() {
 	var configFile string
+	var loadjson string
 	default_conf_file := "./dev.conf"
 	if os.Getenv("GORI_CONFIG_FILE") != "" {
 		default_conf_file = os.Getenv("GORI_CONFIG_FILE")
 	}
 	flag.StringVar(&configFile, "config", default_conf_file, "TOML config file")
+	flag.StringVar(&loadjson, "loadjson", "", "Load JSON data")
 	flag.Parse()
 
 	var (
@@ -148,6 +189,12 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	if loadjson != "" {
+		log.Println("loading JSON data from", loadjson)
+		loadJSON(db, loadjson)
+		os.Exit(0)
+	}
 
 	var ctx = Context{db}
 	http.Handle("/", http.RedirectHandler("/page/index/", 302))
