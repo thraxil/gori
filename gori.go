@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql"
 	"flag"
-	"fmt"
 	"html/template"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -13,17 +11,67 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/russross/blackfriday"
 	"github.com/stvp/go-toml-config"
-	"github.com/tpjg/goriakpbc"
 )
 
 type Page struct {
-	Title    string ""
-	Body     string ""
-	Created  string ""
-	Modified string ""
-	riak.Model
+	Slug     string
+	Title    string
+	Body     string
+	Created  time.Time
+	Modified time.Time
+}
+
+func getPage(db *sql.DB, slug string) (*Page, error) {
+	stmt, err := db.Prepare(
+		"select title, body, created, modified from pages where slug = $1")
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	row := stmt.QueryRow(slug)
+	if row == nil {
+		return nil, nil
+	}
+	var title string
+	var body string
+	var created time.Time
+	var modified time.Time
+
+	row.Scan(&title, &body, &created, &modified)
+
+	p := Page{slug, title, body, created, modified}
+	return &p, nil
+}
+
+func (p *Page) Create(db *sql.DB) error {
+	stmt, err := db.Prepare(
+		"insert into pages (slug, created) values ($1, $2)")
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	now := time.Now()
+	_, err = stmt.Exec(p.Slug, now)
+	return err
+}
+
+func (p *Page) SaveAs(db *sql.DB, slug string) error {
+	stmt, err := db.Prepare(
+		"update pages set title = $1, body = $2, modified = $3 where slug = $4")
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	now := time.Now()
+	_, err = stmt.Exec(p.Title, p.Body, now, slug)
+	return err
 }
 
 func (p Page) RenderedBody() template.HTML {
@@ -64,7 +112,7 @@ func slugify(s string) string {
 }
 
 type Context struct {
-	Client *riak.Client
+	DB *sql.DB
 }
 
 func main() {
@@ -73,13 +121,10 @@ func main() {
 	if os.Getenv("GORI_CONFIG_FILE") != "" {
 		default_conf_file = os.Getenv("GORI_CONFIG_FILE")
 	}
-	var dumpjson string
 	flag.StringVar(&configFile, "config", default_conf_file, "TOML config file")
-	flag.StringVar(&dumpjson, "dumpjson", "", "dump json file")
 	flag.Parse()
 
 	var (
-		riak_host = config.String("riak_host", "")
 		port      = config.String("port", "8888")
 		media_dir = config.String("media_dir", "media")
 	)
@@ -87,102 +132,26 @@ func main() {
 	if os.Getenv("GORI_PORT") != "" {
 		*port = os.Getenv("GORI_PORT")
 	}
-	if os.Getenv("GORI_RIAK_HOST") != "" {
-		*riak_host = os.Getenv("GORI_RIAK_HOST")
-	}
 	if os.Getenv("GORI_MEDIA_DIR") != "" {
 		*media_dir = os.Getenv("GORI_MEDIA_DIR")
 	}
 
-	client := riak.New(*riak_host)
-	err := client.Connect()
+	db, err := sql.Open("postgres", "postgres://pguser:foo@localhost/gori?sslmode=disable")
+
 	if err != nil {
-		fmt.Println("Cannot connect, is Riak running?")
-		return
+		log.Println("can't open database")
+		log.Println(err)
+		os.Exit(1)
 	}
+	defer db.Close()
 
-	log.Println(dumpjson)
-	if dumpjson != "" {
-		log.Println("dump json")
-		dumpJSON(client)
-		return
-	}
-
-	var ctx = Context{client}
+	var ctx = Context{db}
 	http.Handle("/", http.RedirectHandler("/page/index/", 302))
 	http.HandleFunc("/page/", makeHandler(pageHandler, ctx))
 	http.HandleFunc("/edit/", makeHandler(editHandler, ctx))
 	http.Handle("/media/", http.StripPrefix("/media/",
 		http.FileServer(http.Dir(*media_dir))))
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
-	client.Close()
-}
-
-func (p Page) recursivePages(client *riak.Client, seen map[string]Page) map[string]Page {
-	log.Println("===", p.Title, "===")
-	pattern, _ := regexp.Compile(`(\[\[\s*[^\|\]]+\s*\|?\s*[^\]]*\s*\]\])`)
-	seen[p.Title] = p
-	links := pattern.FindAllString(p.Body, -1)
-	for _, s := range links {
-		s = strings.Trim(s, "[]- ") // get rid of the delimiters
-		title := s
-		slug := slugify(s)
-		if strings.Index(s, "|") != -1 {
-			parts := strings.SplitN(s, "|", 2)
-			page_title := strings.Trim(parts[0], " ")
-			link_text := strings.Trim(parts[1], " ")
-			title = link_text
-			slug = slugify(page_title)
-		}
-		_, ok := seen[title]
-		if ok {
-			continue
-		} else {
-			var page Page
-			client.Load("riakipage", slug, &page)
-			children := page.recursivePages(client, seen)
-			for key, value := range children {
-				seen[key] = value
-			}
-		}
-	}
-	return seen
-}
-
-type PageDump struct {
-	Title    string
-	Slug     string
-	Body     string
-	Modified string
-}
-
-func dumpJSON(client *riak.Client) {
-	filename := "out.json"
-
-	var page Page
-	client.Load("riakipage", "index", &page)
-
-	pages := page.recursivePages(client, make(map[string]Page))
-
-	var prs []PageDump
-
-	for _, p := range pages {
-		pr := PageDump{
-			Title:    p.Title,
-			Slug:     slugify(p.Title),
-			Body:     p.Body,
-			Modified: p.Modified,
-		}
-		prs = append(prs, pr)
-	}
-	output, _ := json.Marshal(pages)
-
-	err := ioutil.WriteFile(filename, output, 0644)
-	if err != nil {
-		log.Println("could not write output")
-	} else {
-		log.Println("done")
-	}
 }
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, Context),
@@ -196,7 +165,7 @@ type PageResponse struct {
 	Title    string
 	Slug     string
 	Body     template.HTML
-	Modified string
+	Modified time.Time
 }
 
 func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
@@ -210,13 +179,11 @@ func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		http.Error(w, "bad request", 400)
 		return
 	}
-	var page Page
-	err := ctx.Client.Load("riakipage", slug, &page)
+	page, err := getPage(ctx.DB, slug)
 	if err != nil {
-		// it seems that the riak client likes to return warnings
-		// that i don't understand. At some point, I should
-		// figure out what it's complaining about and do something
-		// with this err instead of just ignoring it.
+		log.Println(err)
+		http.Error(w, "error retrieving page", 500)
+		return
 	}
 	if page.Title == "" {
 		http.Redirect(w, r, "/edit/"+slug+"/", http.StatusFound)
@@ -294,24 +261,21 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		http.Error(w, "bad request", 400)
 		return
 	}
-	var page Page
-	err := ctx.Client.Load("riakipage", slug, &page)
+	page, err := getPage(ctx.DB, slug)
 	if err != nil {
-		// it seems that the riak client likes to return warnings
-		// that i don't understand. At some point, I should
-		// figure out what it's complaining about and do something
-		// with this err instead of just ignoring it.
+		log.Println(err)
+		http.Error(w, "error retrieving page", 500)
+		return
 	}
 
 	if r.Method == "POST" {
 		if r.FormValue("create") == "true" {
-			ctx.Client.New("riakipage", slug, &page)
+			page.Create(ctx.DB)
 		}
 		page.Body = r.FormValue("body")
 		page.Title = r.FormValue("title")
-		t := time.Now()
-		page.Modified = t.Format(time.RFC3339)
-		page.SaveAs(slug)
+		page.Modified = time.Now()
+		page.SaveAs(ctx.DB, slug)
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)
 	} else {
 		// just show the edit form

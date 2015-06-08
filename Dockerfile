@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y ca-certificates
 RUN go get github.com/russross/blackfriday
 RUN go get github.com/stvp/go-toml-config
 RUN go get github.com/tpjg/goriakpbc
+RUN go get github.com/lib/pq
 ADD . /go/src/github.com/thraxil/gori
 RUN go install github.com/thraxil/gori
 RUN mkdir /gori/
