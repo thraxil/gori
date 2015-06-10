@@ -63,17 +63,28 @@ func (p *Page) Create(db *sql.DB) error {
 }
 
 func (p *Page) SaveAs(db *sql.DB, slug string) error {
-	stmt, err := db.Prepare(
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	stmt, err := tx.Prepare(
 		"update pages set title = $1, body = $2, modified = $3 where slug = $4")
 
 	if err != nil {
 		log.Println(err)
+		tx.Rollback()
 		return err
 	}
 
 	now := time.Now()
 	_, err = stmt.Exec(p.Title, p.Body, now, slug)
-	return err
+	if err != nil {
+		log.Println(err)
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
 
 type JsonEntry struct {
@@ -326,6 +337,9 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		page.Body = r.FormValue("body")
 		page.Title = r.FormValue("title")
 		page.Modified = time.Now()
+		log.Println("saving page")
+		log.Println(page.Body)
+		log.Println(slug)
 		page.SaveAs(ctx.DB, slug)
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)
 	} else {

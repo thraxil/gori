@@ -6,4 +6,5 @@ CREATE TABLE pages (
 		modified timestamp
 );
 
+CREATE UNIQUE index slug_idx on pages (slug);
 CREATE UNIQUE index title_idx on pages (title);
