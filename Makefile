@@ -1,6 +1,6 @@
 all: gori
 
-gori: gori.go
+gori: *.go
 	go build .
 
 clean:
@@ -14,6 +14,9 @@ install: gori
 
 test: gori
 	go test .
+
+dev: gori
+	./dev.sh
 
 install_deps:
 	go get -u github.com/russross/blackfriday
