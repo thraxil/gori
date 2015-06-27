@@ -21,14 +21,12 @@ type Context struct {
 func main() {
 	var configFile string
 	var loadjson string
-	var convert string
 	default_conf_file := "./dev.conf"
 	if os.Getenv("GORI_CONFIG_FILE") != "" {
 		default_conf_file = os.Getenv("GORI_CONFIG_FILE")
 	}
 	flag.StringVar(&configFile, "config", default_conf_file, "TOML config file")
 	flag.StringVar(&loadjson, "loadjson", "", "Load JSON data")
-	flag.StringVar(&convert, "convert", "", "convert to events")
 	flag.Parse()
 
 	var (
@@ -50,12 +48,6 @@ func main() {
 	writeRepo := NewPGRepo(DB_URL)
 	eventStore := NewPGEventStore(DB_URL)
 	readRepo := NewEventStoreReadRepo(eventStore)
-
-	if convert != "" {
-		log.Println("converting to events")
-		convertToEvents(NewPGRepo(DB_URL))
-		os.Exit(0)
-	}
 
 	if loadjson != "" {
 		log.Println("loading JSON data from", loadjson)
@@ -117,13 +109,4 @@ func loadJSON(readRepo PageReadRepository, writeRepo PageWriteRepository, filena
 		p.Created = created
 		writeRepo.Store(p)
 	}
-}
-
-func convertToEvents(repo *PGRepo) {
-	pages, err := repo.ListAll()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	repo.InsertEvents(pages)
 }

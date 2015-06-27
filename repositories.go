@@ -71,63 +71,6 @@ func (r *PGRepo) FindBySlug(slug string) (*Page, error) {
 	return &p, nil
 }
 
-func (r *PGRepo) ListAll() ([]Page, error) {
-	pages := make([]Page, 0)
-	rows, err := r.db.Query(
-		"select slug, title, body, created, modified from pages order by created asc")
-	if err != nil {
-		log.Println(err)
-		return pages, err
-	}
-	var slug string
-	var title string
-	var body string
-	var created time.Time
-	var modified time.Time
-
-	for rows.Next() {
-		err := rows.Scan(&slug, &title, &body, &created, &modified)
-		if err != nil {
-			return pages, err
-		}
-		pages = append(pages, Page{Slug: slug, Title: title, Body: body, Created: created, Modified: modified})
-	}
-	return pages, nil
-}
-
-func (r *PGRepo) InsertEvents(pages []Page) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	stmt, err := tx.Prepare(
-		`insert into events (id, command, aggregate_id, event_data, event_context, created)
-                    values($1, $2,      $3,           $4,         $5,          $6)`)
-	if err != nil {
-		log.Println(err)
-		tx.Rollback()
-		return err
-	}
-
-	for _, page := range pages {
-		_, err = stmt.Exec(newUUID(), "set title", page.Slug, page.Title, "", page.Created)
-		if err != nil {
-			log.Println(err)
-			tx.Rollback()
-			return err
-		}
-		_, err = stmt.Exec(newUUID(), "set body", page.Slug, page.Body, "", page.Created)
-		if err != nil {
-			log.Println(err)
-			tx.Rollback()
-			return err
-		}
-	}
-	return tx.Commit()
-}
-
 func (r *PGRepo) Store(page *Page) error {
 	tx, err := r.db.Begin()
 	if err != nil {
