@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -78,7 +79,7 @@ func (s *PGEventStore) Save(aggregateID string, events EventList) error {
 func (s PGEventStore) GetEventsFor(aggregateID string) EventList {
 	events := make(EventList, 0)
 	rows, err := s.db.Query(
-		`select id, command, event_data, event_context
+		`select id, command, event_data, event_context, created
       from events
      where aggregate_id = $1
      order by created asc`, aggregateID)
@@ -89,14 +90,15 @@ func (s PGEventStore) GetEventsFor(aggregateID string) EventList {
 	var command string
 	var data string
 	var context string
+	var created time.Time
 
 	for rows.Next() {
-		err := rows.Scan(&uuid, &command, &data, &context)
+		err := rows.Scan(&uuid, &command, &data, &context, &created)
 		if err != nil {
 			return events
 		}
 		e := s.Dispatch(command)
-		e.Hydrate(uuid, aggregateID, data, context)
+		e.Hydrate(uuid, aggregateID, data, context, created)
 		events = append(events, e)
 	}
 	return events

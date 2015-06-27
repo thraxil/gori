@@ -9,6 +9,28 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// EventStoreRepos -----------------------------------------------------
+
+type EventStoreReadRepo struct {
+	es EventStore
+}
+
+func NewEventStoreReadRepo(e EventStore) *EventStoreReadRepo {
+	return &EventStoreReadRepo{es: e}
+}
+
+func (er *EventStoreReadRepo) FindBySlug(slug string) (*Page, error) {
+	events := er.es.GetEventsFor(slug)
+	log.Println("events:", len(events))
+	for _, event := range events {
+		log.Println("\t", event.GetCommand(), event.GetAggregateID())
+	}
+	page := events.Apply()
+	return page, nil
+}
+
+// PGRepo -----------------------------------------------------
+
 type PGRepo struct {
 	db *sql.DB
 }

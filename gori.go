@@ -45,9 +45,10 @@ func main() {
 		DB_URL = os.Getenv("GORI_DB_URL")
 	}
 
-	readRepo := NewPGRepo(DB_URL)
+	//	readRepo := NewPGRepo(DB_URL)
 	writeRepo := NewPGRepo(DB_URL)
 	eventStore := NewPGEventStore(DB_URL)
+	readRepo := NewEventStoreReadRepo(eventStore)
 
 	if loadjson != "" {
 		log.Println("loading JSON data from", loadjson)

@@ -37,11 +37,6 @@ func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		http.Redirect(w, r, "/edit/"+slug+"/", http.StatusFound)
 		return
 	}
-	events := ctx.EventStore.GetEventsFor(slug)
-	log.Println("events:", len(events))
-	for _, event := range events {
-		log.Println("\t", event.GetCommand(), event.GetAggregateID(), event.GetData())
-	}
 	w.Header().Set("Content-Type", "text/html")
 	pr := PageResponse{
 		Title:    page.Title,
