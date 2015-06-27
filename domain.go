@@ -87,5 +87,6 @@ type PageReadRepository interface {
 }
 
 type PageWriteRepository interface {
-	Store(*Page) error
+	SetTitle(*Page, string) error
+	SetBody(*Page, string) error
 }

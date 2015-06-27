@@ -117,17 +117,8 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 	}
 
 	if r.Method == "POST" {
-		events := make(EventList, 0)
-		if page.SetTitle(r.FormValue("title")) {
-			events = append(events, CreateSetTitleEvent(slug, page.Title, ""))
-		}
-		if page.SetBody(r.FormValue("body")) {
-			events = append(events, CreateSetBodyEvent(slug, page.Body, ""))
-		}
-		ctx.EventStore.Save(slug, events)
-
-		page.Modified = time.Now()
-		ctx.PageWriteRepo.Store(page)
+		ctx.PageWriteRepo.SetTitle(page, r.FormValue("title"))
+		ctx.PageWriteRepo.SetBody(page, r.FormValue("body"))
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)
 	} else {
 		// just show the edit form

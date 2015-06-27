@@ -45,9 +45,9 @@ func main() {
 		DB_URL = os.Getenv("GORI_DB_URL")
 	}
 
-	writeRepo := NewPGRepo(DB_URL)
 	eventStore := NewPGEventStore(DB_URL)
-	readRepo := NewEventStoreReadRepo(eventStore)
+	readRepo := NewEventStoreRepo(eventStore)
+	writeRepo := NewEventStoreRepo(eventStore)
 
 	if loadjson != "" {
 		log.Println("loading JSON data from", loadjson)
@@ -107,6 +107,7 @@ func loadJSON(readRepo PageReadRepository, writeRepo PageWriteRepository, filena
 			created = modified
 		}
 		p.Created = created
-		writeRepo.Store(p)
+		writeRepo.SetTitle(p, p.Title)
+		writeRepo.SetBody(p, p.Body)
 	}
 }
