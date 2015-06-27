@@ -44,6 +44,10 @@ func (p Page) RenderedBody() template.HTML {
 	return template.HTML(string(blackfriday.MarkdownCommon([]byte(p.LinkText()))))
 }
 
+func (p Page) RenderModified() string {
+	return p.Modified.Format(time.RFC3339)
+}
+
 func makeLink(s string) string {
 	// s should look like '[[Page Title]]'
 	// or [[Page Title|link text]]

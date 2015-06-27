@@ -5,14 +5,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type PageResponse struct {
 	Title    string
 	Slug     string
 	Body     template.HTML
-	Modified time.Time
+	Modified string
 }
 
 func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
@@ -42,7 +41,7 @@ func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		Title:    page.Title,
 		Slug:     slugify(page.Title),
 		Body:     page.RenderedBody(),
-		Modified: page.Modified,
+		Modified: page.RenderModified(),
 	}
 	t, _ := template.New("page").Parse(page_view_template)
 	t.Execute(w, pr)
