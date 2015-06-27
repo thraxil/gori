@@ -26,11 +26,9 @@ type EventStore interface {
 	Dispatch(string) Event
 }
 
-type EventFactory func() Event
-
 type PGEventStore struct {
 	db       *sql.DB
-	dispatch map[string]EventFactory
+	registry *EventRegistry
 }
 
 func NewPGEventStore(dbURL string) *PGEventStore {
@@ -41,15 +39,15 @@ func NewPGEventStore(dbURL string) *PGEventStore {
 		log.Println(err)
 		os.Exit(1)
 	}
-	dispatch := make(map[string]EventFactory)
-	dispatch["set title"] = func() Event { return &SetTitleEvent{} }
-	dispatch["set body"] = func() Event { return &SetBodyEvent{} }
+	registry := NewEventRegistry()
+	registry.Register("set title", func() Event { return &SetTitleEvent{} })
+	registry.Register("set body", func() Event { return &SetBodyEvent{} })
 
-	return &PGEventStore{db: db, dispatch: dispatch}
+	return &PGEventStore{db: db, registry: registry}
 }
 
 func (s PGEventStore) Dispatch(command string) Event {
-	return s.dispatch[command]()
+	return s.registry.Dispatch(command)
 }
 
 func (s *PGEventStore) Save(aggregateID string, events EventList) error {
