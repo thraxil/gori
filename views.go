@@ -26,7 +26,7 @@ func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		http.Error(w, "bad request", 400)
 		return
 	}
-	page, err := ctx.PageRepo.FindBySlug(slug)
+	page, err := ctx.PageReadRepo.FindBySlug(slug)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "error retrieving page", 500)
@@ -108,7 +108,7 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		http.Error(w, "bad request", 400)
 		return
 	}
-	page, err := ctx.PageRepo.FindBySlug(slug)
+	page, err := ctx.PageReadRepo.FindBySlug(slug)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "error retrieving page", 500)
@@ -119,7 +119,7 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 		page.Body = r.FormValue("body")
 		page.Title = r.FormValue("title")
 		page.Modified = time.Now()
-		ctx.PageRepo.Store(page)
+		ctx.PageWriteRepo.Store(page)
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)
 	} else {
 		// just show the edit form

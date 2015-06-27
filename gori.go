@@ -13,7 +13,8 @@ import (
 )
 
 type Context struct {
-	PageRepo PageRepository
+	PageReadRepo  PageReadRepository
+	PageWriteRepo PageWriteRepository
 }
 
 func main() {
@@ -43,15 +44,16 @@ func main() {
 		DB_URL = os.Getenv("GORI_DB_URL")
 	}
 
-	repo := NewPGRepo(DB_URL)
+	readRepo := NewPGRepo(DB_URL)
+	writeRepo := NewPGRepo(DB_URL)
 
 	if loadjson != "" {
 		log.Println("loading JSON data from", loadjson)
-		loadJSON(repo, loadjson)
+		loadJSON(readRepo, writeRepo, loadjson)
 		os.Exit(0)
 	}
 
-	var ctx = Context{PageRepo: repo}
+	var ctx = Context{PageReadRepo: readRepo, PageWriteRepo: writeRepo}
 	http.Handle("/", http.RedirectHandler("/page/index/", 302))
 	http.HandleFunc("/page/", makeHandler(pageHandler, ctx))
 	http.HandleFunc("/edit/", makeHandler(editHandler, ctx))
@@ -76,7 +78,7 @@ type JsonEntry struct {
 
 type JsonFile map[string]JsonEntry
 
-func loadJSON(repo PageRepository, filename string) {
+func loadJSON(readRepo PageReadRepository, writeRepo PageWriteRepository, filename string) {
 	data, _ := ioutil.ReadFile(filename)
 	var entries JsonFile
 	err := json.Unmarshal(data, &entries)
@@ -86,7 +88,7 @@ func loadJSON(repo PageRepository, filename string) {
 	}
 	for title, entry := range entries {
 		slug := slugify(title)
-		p, _ := repo.FindBySlug(slug)
+		p, _ := readRepo.FindBySlug(slug)
 		p.Title = entry.Title
 		p.Body = entry.Body
 		modified, err := time.Parse("2006-01-02T15:04:05", entry.Modified)
@@ -99,6 +101,6 @@ func loadJSON(repo PageRepository, filename string) {
 			created = modified
 		}
 		p.Created = created
-		repo.Store(p)
+		writeRepo.Store(p)
 	}
 }

@@ -54,7 +54,10 @@ func slugify(s string) string {
 	return s
 }
 
-type PageRepository interface {
+type PageReadRepository interface {
 	FindBySlug(string) (*Page, error)
+}
+
+type PageWriteRepository interface {
 	Store(*Page) error
 }
