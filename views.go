@@ -16,6 +16,7 @@ type PageResponse struct {
 }
 
 func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
+	log.Println("pageHandler", r.URL.String())
 	parts := strings.Split(r.URL.String(), "/")
 	if len(parts) < 3 {
 		http.Error(w, "bad request", 400)
@@ -35,6 +36,11 @@ func pageHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 	if page.Title == "" {
 		http.Redirect(w, r, "/edit/"+slug+"/", http.StatusFound)
 		return
+	}
+	events := ctx.EventStore.GetEventsFor(slug)
+	log.Println("events:", len(events))
+	for _, event := range events {
+		log.Println("\t", event.GetCommand(), event.GetAggregateID(), event.GetData())
 	}
 	w.Header().Set("Content-Type", "text/html")
 	pr := PageResponse{
@@ -116,8 +122,15 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 	}
 
 	if r.Method == "POST" {
-		page.Body = r.FormValue("body")
-		page.Title = r.FormValue("title")
+		events := make(EventList, 0)
+		if page.SetTitle(r.FormValue("title")) {
+			events = append(events, CreateSetTitleEvent(slug, page.Title, ""))
+		}
+		if page.SetBody(r.FormValue("body")) {
+			events = append(events, CreateSetBodyEvent(slug, page.Body, ""))
+		}
+		ctx.EventStore.Save(slug, events)
+
 		page.Modified = time.Now()
 		ctx.PageWriteRepo.Store(page)
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)

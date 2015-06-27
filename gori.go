@@ -15,6 +15,7 @@ import (
 type Context struct {
 	PageReadRepo  PageReadRepository
 	PageWriteRepo PageWriteRepository
+	EventStore    EventStore
 }
 
 func main() {
@@ -46,6 +47,7 @@ func main() {
 
 	readRepo := NewPGRepo(DB_URL)
 	writeRepo := NewPGRepo(DB_URL)
+	eventStore := NewPGEventStore(DB_URL)
 
 	if loadjson != "" {
 		log.Println("loading JSON data from", loadjson)
@@ -53,7 +55,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	var ctx = Context{PageReadRepo: readRepo, PageWriteRepo: writeRepo}
+	var ctx = Context{PageReadRepo: readRepo, PageWriteRepo: writeRepo, EventStore: eventStore}
+	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.Handle("/", http.RedirectHandler("/page/index/", 302))
 	http.HandleFunc("/page/", makeHandler(pageHandler, ctx))
 	http.HandleFunc("/edit/", makeHandler(editHandler, ctx))
@@ -67,6 +70,9 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, Context),
 	return func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, ctx)
 	}
+}
+
+func faviconHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type JsonEntry struct {

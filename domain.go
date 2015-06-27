@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"regexp"
 	"strings"
@@ -10,11 +11,33 @@ import (
 )
 
 type Page struct {
-	Slug     string
-	Title    string
-	Body     string
-	Created  time.Time
-	Modified time.Time
+	Slug     string    `json:"slug"`
+	Title    string    `json:"title"`
+	Body     string    `json:"body"`
+	Created  time.Time `json:"created"`
+	Modified time.Time `json:"modified"`
+}
+
+func (p *Page) SetTitle(title string) bool {
+	if title == "" {
+		return false
+	}
+	if title == p.Title {
+		return false
+	}
+	p.Title = title
+	return true
+}
+
+func (p *Page) SetBody(body string) bool {
+	if body == "" {
+		return false
+	}
+	if body == p.Body {
+		return false
+	}
+	p.Body = body
+	return true
 }
 
 func (p Page) RenderedBody() template.HTML {
@@ -52,6 +75,11 @@ func slugify(s string) string {
 	s = strings.Replace(s, " ", "-", -1)
 	s = strings.ToLower(s)
 	return s
+}
+
+func (p Page) JSON() string {
+	data, _ := json.Marshal(p)
+	return string(data)
 }
 
 type PageReadRepository interface {
