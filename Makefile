@@ -22,6 +22,7 @@ install_deps:
 	go get -u github.com/russross/blackfriday
 	go get -u github.com/stvp/go-toml-config
 	go get -u github.com/lib/pq
+	go get github.com/nu7hatch/gouuid
 
 deploy: docker
 	docker push thraxil/gori
