@@ -32,6 +32,8 @@ func (el EventList) Apply() *Page {
 	return p
 }
 
+// common base for events
+
 type StoredEvent struct {
 	UUID        string
 	AggregateID string
@@ -73,6 +75,8 @@ func newUUID() string {
 	return u4.String()
 }
 
+// SetTitleEvent -------------------------------------------------------------
+
 type SetTitleEvent struct {
 	StoredEvent
 }
@@ -92,6 +96,8 @@ func (e SetTitleEvent) Apply(page *Page) *Page {
 	page.Modified = e.Created
 	return page
 }
+
+// SetBodyEvent -------------------------------------------------------------
 
 type SetBodyEvent struct {
 	StoredEvent
