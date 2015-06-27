@@ -42,7 +42,6 @@ func NewPGEventStore(dbURL string) *PGEventStore {
 		os.Exit(1)
 	}
 	dispatch := make(map[string]EventFactory)
-	dispatch["page changed"] = func() Event { return &PageChangedEvent{} }
 	dispatch["set title"] = func() Event { return &SetTitleEvent{} }
 	dispatch["set body"] = func() Event { return &SetBodyEvent{} }
 
@@ -150,20 +149,6 @@ func (e StoredEvent) GetContext() string {
 func newUUID() string {
 	u4, _ := uuid.NewV4()
 	return u4.String()
-}
-
-type PageChangedEvent struct {
-	StoredEvent
-}
-
-func CreatePageChangedEvent(aggregateID, data, context string) *PageChangedEvent {
-	p := &PageChangedEvent{}
-	p.Hydrate(newUUID(), aggregateID, data, context)
-	return p
-}
-
-func (e PageChangedEvent) GetCommand() string {
-	return "page changed"
 }
 
 type SetTitleEvent struct {
