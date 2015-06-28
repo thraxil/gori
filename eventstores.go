@@ -50,16 +50,16 @@ func (s *PGEventStore) Save(aggregateID string, events EventList) error {
 		log.Println(err)
 		return err
 	}
+	stmt, err := tx.Prepare(
+		`insert into events (id, command, aggregate_id, event_data, event_context)
+                  values($1, $2,      $3,           $4,         $5)`)
+	if err != nil {
+		log.Println(err)
+		tx.Rollback()
+		return err
+	}
 
 	for _, event := range events {
-		stmt, err := tx.Prepare(
-			`insert into events (id, command, aggregate_id, event_data, event_context)
-                    values($1, $2,      $3,           $4,         $5)`)
-		if err != nil {
-			log.Println(err)
-			tx.Rollback()
-			return err
-		}
 		_, err = stmt.Exec(
 			event.GetUUID(),
 			event.GetCommand(),
