@@ -40,7 +40,6 @@ func (s PGEventStore) Dispatch(command string) Event {
 }
 
 func (s *PGEventStore) Save(aggregateID string, events EventList) error {
-	log.Println("PG EventStore: saving events for", aggregateID)
 	if len(events) == 0 {
 		// none to save
 		return nil

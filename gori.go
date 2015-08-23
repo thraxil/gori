@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"expvar"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/stvp/go-toml-config"
+	config "github.com/stvp/go-toml-config"
 )
 
 type Context struct {
@@ -17,6 +18,10 @@ type Context struct {
 	PageWriteRepo PageWriteRepository
 	EventStore    EventStore
 }
+
+var (
+	reqs = expvar.NewInt("requests")
+)
 
 func main() {
 	var configFile string
@@ -68,6 +73,7 @@ func main() {
 func makeHandler(fn func(http.ResponseWriter, *http.Request, Context),
 	ctx Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		reqs.Add(1)
 		fn(w, r, ctx)
 	}
 }

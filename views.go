@@ -116,6 +116,7 @@ func editHandler(w http.ResponseWriter, r *http.Request, ctx Context) {
 	}
 
 	if r.Method == "POST" {
+		page.Slug = slug
 		ctx.PageWriteRepo.SetTitle(page, r.FormValue("title"))
 		ctx.PageWriteRepo.SetBody(page, r.FormValue("body"))
 		http.Redirect(w, r, "/page/"+slug+"/", http.StatusFound)
